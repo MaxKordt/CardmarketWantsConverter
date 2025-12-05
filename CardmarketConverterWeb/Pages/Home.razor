@@ -2,6 +2,7 @@
 @using CardmarketConverterWeb.Services
 @using System.Text
 @inject IJSRuntime JS
+@inject ExpansionListService ExpansionList
 
 <PageTitle>Cardmarket Converter</PageTitle>
 
@@ -56,6 +57,11 @@
     private bool hasOutput = false;
     private string statusMessage = string.Empty;
     private ExpansionExtractor extractor = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ExpansionList.InitializeAsync();
+    }
     
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
@@ -80,7 +86,7 @@
         }
     }
     
-    private void ProcessContent()
+    private async Task ProcessContent()
     {
         if (string.IsNullOrWhiteSpace(inputContent))
         {
@@ -96,7 +102,16 @@
             extractedExpansions = extractor.ExtractExpansionNames(inputContent);
             outputContent = extractor.ConvertListToText(extractedExpansions);
             hasOutput = extractedExpansions.Count > 0;
-            statusMessage = $"Successfully extracted {extractedExpansions.Count} expansions!";
+            
+            if (hasOutput)
+            {
+                var addedCount = await ExpansionList.AddExpansionsAsync(extractedExpansions);
+                statusMessage = $"Successfully extracted {extractedExpansions.Count} expansions! ({addedCount} new, {extractedExpansions.Count - addedCount} already in list)";
+            }
+            else
+            {
+                statusMessage = "No expansions found!";
+            }
         }
         catch (Exception ex)
         {

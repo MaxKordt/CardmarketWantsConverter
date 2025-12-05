@@ -1,0 +1,197 @@
+@page "/expansions"
+@using CardmarketConverterWeb.Services
+@using CardmarketConverterWeb.Models
+@using System.Text
+@inject ExpansionListService ExpansionList
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>All Expansions</PageTitle>
+
+<h1>All Expansions</h1>
+
+<div class="container">
+    @if (expansionObjects.Count == 0)
+    {
+        <div class="alert alert-info" role="alert">
+            No expansions found. Use the converter to extract expansions first.
+        </div>
+    }
+    else
+    {
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-primary fs-5">Total: @expansionObjects.Count expansions</span>
+            </div>
+            <div>
+                <button class="btn btn-success me-2" @onclick="DownloadAsJson">
+                    Download as JSON
+                </button>
+                <button class="btn btn-success me-2" @onclick="DownloadAsTxt">
+                    Download as TXT
+                </button>
+                <button class="btn btn-danger" @onclick="ClearAll">
+                    Clear All
+                </button>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(activeTab == "list" ? "active" : "")" @onclick='() => activeTab = "list"'>
+                    List View
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(activeTab == "details" ? "active" : "")" @onclick='() => activeTab = "details"'>
+                    Detailed View
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(activeTab == "json" ? "active" : "")" @onclick='() => activeTab = "json"'>
+                    JSON View
+                </button>
+            </li>
+        </ul>
+
+        @if (activeTab == "list")
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Expansion List</h5>
+                            <div class="expansion-badges mb-3">
+                                @foreach (var expansion in expansionObjects)
+                                {
+                                    <span class="badge bg-secondary me-2 mb-2 d-inline-flex align-items-center">
+                                        @expansion.Name
+                                        <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6rem;" @onclick="() => RemoveExpansion(expansion.Name)" aria-label="Remove"></button>
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Text Format</h5>
+                            <textarea class="form-control" rows="20" readonly>@textContent</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (activeTab == "details")
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>First Extracted</th>
+                                    <th>Last Seen</th>
+                                    <th>Times Extracted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var expansion in expansionObjects)
+                                {
+                                    <tr>
+                                        <td><strong>@expansion.Name</strong></td>
+                                        <td>@expansion.FirstExtracted.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td>@expansion.LastSeen.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td>
+                                            <span class="badge bg-info">@expansion.TimesExtracted</span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" @onclick="() => RemoveExpansion(expansion.Name)">
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (activeTab == "json")
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h5>JSON Format</h5>
+                    <p class="text-muted">This is the format used for storage and export. You can use this data in other applications.</p>
+                    <textarea class="form-control font-monospace" rows="25" readonly>@jsonContent</textarea>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<Expansion> expansionObjects = new();
+    private string textContent = string.Empty;
+    private string jsonContent = string.Empty;
+    private string activeTab = "list";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ExpansionList.InitializeAsync();
+        LoadExpansions();
+        ExpansionList.OnExpansionsChanged += OnExpansionsChanged;
+    }
+
+    private void LoadExpansions()
+    {
+        expansionObjects = ExpansionList.GetAllExpansions();
+        var expansionNames = ExpansionList.GetAll();
+        textContent = string.Join(Environment.NewLine, expansionNames);
+        jsonContent = ExpansionList.ExportAsJson();
+    }
+
+    private void OnExpansionsChanged()
+    {
+        LoadExpansions();
+        StateHasChanged();
+    }
+
+    private async Task DownloadAsTxt()
+    {
+        if (expansionObjects.Count == 0) return;
+        
+        var fileName = $"expansions_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+        var bytes = Encoding.UTF8.GetBytes(textContent);
+        var base64 = Convert.ToBase64String(bytes);
+        
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private async Task DownloadAsJson()
+    {
+        if (expansionObjects.Count == 0) return;
+        
+        var fileName = $"expansions_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var bytes = Encoding.UTF8.GetBytes(jsonContent);
+        var base64 = Convert.ToBase64String(bytes);
+        
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private async Task RemoveExpansion(string expansionName)
+    {
+        await ExpansionList.RemoveAsync(expansionName);
+    }
+
+    private async Task ClearAll()
+    {
+        await ExpansionList.ClearAllAsync();
+    }
+
+    public void Dispose()
+    {
+        ExpansionList.OnExpansionsChanged -= OnExpansionsChanged;
+    }
+}
+
