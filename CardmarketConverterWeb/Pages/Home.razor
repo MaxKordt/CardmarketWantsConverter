@@ -1,0 +1,124 @@
+@page "/"
+@using CardmarketConverterWeb.Services
+@using System.Text
+@inject IJSRuntime JS
+
+<PageTitle>Cardmarket Converter</PageTitle>
+
+<h1>Cardmarket Converter</h1>
+
+<div class="container">
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <h3>Input</h3>
+            <div class="mb-3">
+                <label for="inputFile" class="form-label">Upload HTML File</label>
+                <InputFile id="inputFile" OnChange="HandleFileSelected" class="form-control" accept=".html,.htm" />
+            </div>
+            <div class="mb-3">
+                <label for="inputText" class="form-label">Or Paste HTML Content</label>
+                <textarea @bind="inputContent" id="inputText" class="form-control" rows="10" placeholder="Paste HTML content here..."></textarea>
+            </div>
+            <button class="btn btn-primary" @onclick="ProcessContent" disabled="@isProcessing">
+                @if (isProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                }
+                Extract Expansions
+            </button>
+        </div>
+        
+        <div class="col-md-6">
+            <h3>Output</h3>
+            <div class="mb-3">
+                <label class="form-label">Extracted Expansions (@extractedExpansions.Count)</label>
+                <textarea class="form-control" rows="10" readonly value="@outputContent"></textarea>
+            </div>
+            <button class="btn btn-success" @onclick="DownloadOutput" disabled="@(!hasOutput)">
+                Download as TXT
+            </button>
+        </div>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert alert-info mt-3" role="alert">
+            @statusMessage
+        </div>
+    }
+</div>
+
+@code {
+    private string inputContent = string.Empty;
+    private string outputContent = string.Empty;
+    private List<string> extractedExpansions = new();
+    private bool isProcessing = false;
+    private bool hasOutput = false;
+    private string statusMessage = string.Empty;
+    private ExpansionExtractor extractor = new();
+    
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        isProcessing = true;
+        statusMessage = "Reading file...";
+        
+        try
+        {
+            var file = e.File;
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB max
+            using var reader = new StreamReader(stream);
+            inputContent = await reader.ReadToEndAsync();
+            statusMessage = $"File '{file.Name}' loaded successfully!";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error reading file: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    
+    private void ProcessContent()
+    {
+        if (string.IsNullOrWhiteSpace(inputContent))
+        {
+            statusMessage = "Please provide input content first!";
+            return;
+        }
+        
+        isProcessing = true;
+        statusMessage = "Processing...";
+        
+        try
+        {
+            extractedExpansions = extractor.ExtractExpansionNames(inputContent);
+            outputContent = extractor.ConvertListToText(extractedExpansions);
+            hasOutput = extractedExpansions.Count > 0;
+            statusMessage = $"Successfully extracted {extractedExpansions.Count} expansions!";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error processing content: {ex.Message}";
+            hasOutput = false;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    
+    private async Task DownloadOutput()
+    {
+        if (!hasOutput) return;
+        
+        var fileName = $"expansions_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+        var bytes = Encoding.UTF8.GetBytes(outputContent);
+        var base64 = Convert.ToBase64String(bytes);
+        
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64);
+        statusMessage = $"Downloaded {fileName}";
+    }
+}
+
