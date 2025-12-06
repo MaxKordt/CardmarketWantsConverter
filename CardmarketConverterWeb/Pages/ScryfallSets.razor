@@ -1,6 +1,8 @@
 @page "/scryfall-sets"
 @using System.Net.Http.Json
+@using System.Text.Json
 @inject HttpClient HttpClient
+@inject IJSRuntime JS
 
 <PageTitle>Scryfall Sets</PageTitle>
 
@@ -10,6 +12,11 @@
     <div class="alert alert-info" role="alert">
         <strong>📚 Scryfall Sets:</strong> Browse all Magic: The Gathering sets from the Scryfall API.
         Organized by release year.
+        @if (!string.IsNullOrEmpty(cacheInfo))
+        {
+            <br />
+            <small class="text-muted">@cacheInfo</small>
+        }
     </div>
 
     @if (loading)
@@ -26,7 +33,7 @@
         <div class="alert alert-danger" role="alert">
             <h5>Error loading sets</h5>
             <p>@error</p>
-            <button class="btn btn-sm btn-outline-danger" @onclick="LoadSets">Retry</button>
+            <button class="btn btn-sm btn-outline-danger" @onclick="() => LoadSets(true)">Retry</button>
         </div>
     }
     else if (yearGroups.Count == 0)
@@ -40,6 +47,19 @@
         <div class="mb-3 d-flex justify-content-between align-items-center">
             <div>
                 <span class="badge bg-primary fs-5">Total: @allSets.Count sets</span>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary" @onclick="() => LoadSets(true)" disabled="@loading">
+                    @if (loading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    else
+                    {
+                        <span>🔄</span>
+                    }
+                    Refresh from API
+                </button>
             </div>
         </div>
 
@@ -114,16 +134,20 @@
     private HashSet<int> expandedYears = new();
     private bool loading = true;
     private string? error = null;
+    private string cacheInfo = string.Empty;
+    
+    private const string CacheKey = "scryfall_sets_cache";
+    private const string CacheTimestampKey = "scryfall_sets_cache_timestamp";
 
     protected override async Task OnInitializedAsync()
     {
         // Expand current year by default
         expandedYears.Add(DateTime.Now.Year);
         
-        await LoadSets();
+        await LoadSets(forceRefresh: false);
     }
 
-    private async Task LoadSets()
+    private async Task LoadSets(bool forceRefresh = false)
     {
         loading = true;
         error = null;
@@ -131,15 +155,46 @@
 
         try
         {
-            var response = await HttpClient.GetFromJsonAsync<ScryfallSetsResponse>("https://api.scryfall.com/sets");
+            List<ScryfallSet>? cachedSets = null;
             
-            if (response?.Data != null)
+            if (!forceRefresh)
             {
-                allSets = response.Data
-                    .OrderByDescending(s => s.ReleasedAt)
-                    .ToList();
+                // Try to load from cache
+                cachedSets = await LoadFromCache();
+            }
 
-                // Group by year
+            if (cachedSets != null && cachedSets.Count > 0)
+            {
+                // Use cached data
+                allSets = cachedSets;
+                Console.WriteLine($"Loaded {allSets.Count} sets from cache");
+            }
+            else
+            {
+                // Fetch from API
+                Console.WriteLine("Fetching sets from Scryfall API...");
+                var response = await HttpClient.GetFromJsonAsync<ScryfallSetsResponse>("https://api.scryfall.com/sets");
+                
+                if (response?.Data != null)
+                {
+                    allSets = response.Data
+                        .OrderByDescending(s => s.ReleasedAt)
+                        .ToList();
+
+                    // Save to cache
+                    await SaveToCache(allSets);
+                    cacheInfo = $"📡 Fetched from API at {DateTime.Now:HH:mm} on {DateTime.Now:yyyy-MM-dd}";
+                    Console.WriteLine($"Loaded {allSets.Count} sets from API and cached");
+                }
+                else
+                {
+                    error = "Failed to load sets from Scryfall API";
+                }
+            }
+
+            // Group by year
+            if (allSets.Count > 0)
+            {
                 yearGroups = allSets
                     .Where(s => !string.IsNullOrEmpty(s.ReleasedAt))
                     .Select(s => new { Set = s, Year = ExtractYear(s.ReleasedAt) })
@@ -153,19 +208,82 @@
                     })
                     .ToList();
             }
-            else
-            {
-                error = "Failed to load sets from Scryfall API";
-            }
         }
         catch (Exception ex)
         {
             error = $"Error: {ex.Message}";
+            Console.WriteLine($"Error loading sets: {ex.Message}");
         }
         finally
         {
             loading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task<List<ScryfallSet>?> LoadFromCache()
+    {
+        try
+        {
+            var cacheJson = await JS.InvokeAsync<string>("localStorage.getItem", CacheKey);
+            
+            if (!string.IsNullOrEmpty(cacheJson))
+            {
+                var sets = JsonSerializer.Deserialize<List<ScryfallSet>>(cacheJson);
+                
+                // Get cache timestamp for display
+                var timestampJson = await JS.InvokeAsync<string>("localStorage.getItem", CacheTimestampKey);
+                if (!string.IsNullOrEmpty(timestampJson))
+                {
+                    var timestamp = DateTime.Parse(timestampJson);
+                    var age = DateTime.Now - timestamp;
+                    
+                    var daysOld = (int)age.TotalDays;
+                    var hoursOld = (int)age.TotalHours % 24;
+                    
+                    if (daysOld > 0)
+                    {
+                        cacheInfo = $"💾 Cached data ({daysOld}d {hoursOld}h old)";
+                    }
+                    else if (hoursOld > 0)
+                    {
+                        var minutesOld = (int)age.TotalMinutes % 60;
+                        cacheInfo = $"💾 Cached data ({hoursOld}h {minutesOld}m old)";
+                    }
+                    else
+                    {
+                        var minutesOld = (int)age.TotalMinutes;
+                        cacheInfo = $"💾 Cached data ({minutesOld}m old)";
+                    }
+                }
+                else
+                {
+                    cacheInfo = "💾 Cached data";
+                }
+                
+                return sets;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading from cache: {ex.Message}");
+        }
+        
+        return null;
+    }
+
+    private async Task SaveToCache(List<ScryfallSet> sets)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(sets);
+            await JS.InvokeVoidAsync("localStorage.setItem", CacheKey, json);
+            await JS.InvokeVoidAsync("localStorage.setItem", CacheTimestampKey, DateTime.Now.ToString("o"));
+            Console.WriteLine("Sets saved to cache");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving to cache: {ex.Message}");
         }
     }
 
@@ -196,6 +314,7 @@
     }
 
     // API Response Models
+    // ...existing code...
     private class ScryfallSetsResponse
     {
         [System.Text.Json.Serialization.JsonPropertyName("data")]
