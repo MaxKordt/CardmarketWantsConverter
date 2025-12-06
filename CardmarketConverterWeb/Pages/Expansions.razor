@@ -122,15 +122,10 @@
                                                             @if (!string.IsNullOrEmpty(expansion.Url))
                                                             {
                                                                 <a href="https://www.cardmarket.com@expansion.Url" target="_blank" 
-                                                                   class="btn btn-sm btn-outline-primary me-1" title="View on Cardmarket">
+                                                                   class="btn btn-sm btn-outline-primary" title="View on Cardmarket">
                                                                     View
                                                                 </a>
                                                             }
-                                                            <button class="btn btn-sm btn-outline-danger" 
-                                                                    @onclick="() => RemoveExpansion(expansion.Name)" 
-                                                                    title="Delete">
-                                                                Delete
-                                                            </button>
                                                         </div>
                                                     </div>
                                                 }
@@ -148,10 +143,8 @@
                                 <div class="expansion-badges">
                                     @foreach (var expansion in GetExpansionsWithoutDate())
                                     {
-                                        <span class="badge bg-secondary me-2 mb-2 d-inline-flex align-items-center">
+                                        <span class="badge bg-secondary me-2 mb-2">
                                             @expansion.Name
-                                            <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6rem;" 
-                                                    @onclick="() => RemoveExpansion(expansion.Name)" aria-label="Remove"></button>
                                         </span>
                                     }
                                 </div>
@@ -221,11 +214,8 @@
                                         <td>
                                             @if (!string.IsNullOrEmpty(expansion.Url))
                                             {
-                                                <a href="https://www.cardmarket.com@expansion.Url" target="_blank" class="btn btn-sm btn-primary me-1">View</a>
+                                                <a href="https://www.cardmarket.com@expansion.Url" target="_blank" class="btn btn-sm btn-primary">View</a>
                                             }
-                                            <button class="btn btn-sm btn-danger" @onclick="() => RemoveExpansion(expansion.Name)">
-                                                Delete
-                                            </button>
                                         </td>
                                     </tr>
                                 }
