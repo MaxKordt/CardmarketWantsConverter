@@ -119,11 +119,11 @@
                                                             </div>
                                                         </div>
                                                         <div class="ms-3">
-                                                            @if (!string.IsNullOrEmpty(expansion.Url))
+                                                            @if (!string.IsNullOrEmpty(expansion.SetCode))
                                                             {
-                                                                <a href="https://www.cardmarket.com@expansion.Url" target="_blank" 
-                                                                   class="btn btn-sm btn-outline-primary" title="View on Cardmarket">
-                                                                    View
+                                                                <a href="https://www.cardmarket.com/de/Magic/Expansions/@expansion.SetCode" target="_blank" 
+                                                                   class="btn btn-sm btn-outline-primary" title="Open in Cardmarket">
+                                                                    Open in Cardmarket
                                                                 </a>
                                                             }
                                                         </div>
@@ -163,7 +163,7 @@
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Set Code</th>
+                                    <th>Set URL</th>
                                     <th>Cards</th>
                                     <th>Release Date</th>
                                     <th>Actions</th>
@@ -212,9 +212,9 @@
                                             }
                                         </td>
                                         <td>
-                                            @if (!string.IsNullOrEmpty(expansion.Url))
+                                            @if (!string.IsNullOrEmpty(expansion.SetCode))
                                             {
-                                                <a href="https://www.cardmarket.com@expansion.Url" target="_blank" class="btn btn-sm btn-primary">View</a>
+                                                <a href="https://www.cardmarket.com/de/Magic/Expansions/@expansion.SetCode" target="_blank" class="btn btn-sm btn-primary">Open in Cardmarket</a>
                                             }
                                         </td>
                                     </tr>
