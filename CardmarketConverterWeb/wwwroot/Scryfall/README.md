@@ -2,11 +2,15 @@
 
 This directory should contain Scryfall bulk data files downloaded by each user.
 
+## Location
+
+This directory is in `wwwroot/Scryfall/` so that files can be served by the web application.
+
 ## How to Download
 
 1. Visit [Scryfall Bulk Data API](https://scryfall.com/docs/api/bulk-data)
-2. Download the **"Default Cards"** JSON file (or whichever bulk data you need)
-3. Place the downloaded `.json` file in this directory
+2. Download the **"All Cards"** JSON file (or "Default Cards")
+3. Place the downloaded `.json` file in this directory (`wwwroot/Scryfall/`)
 
 ## Available Bulk Data Types
 

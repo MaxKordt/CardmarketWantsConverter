@@ -6,13 +6,31 @@ namespace CardmarketConverterWeb.Services;
 
 public class ScryfallDataService
 {
-    private List<ScryfallCard>? _allCards;
+    private static List<ScryfallCard>? _allCards;
+    private static bool _isLoaded = false;
+    private static readonly SemaphoreSlim _loadLock = new(1, 1);
+    private static string _fileToLoad = "oracle-cards"; // Default
+    
     private readonly HttpClient _httpClient;
-    private bool _isLoaded = false;
 
     public ScryfallDataService(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    public void SetFileToLoad(string fileName)
+    {
+        // Remove .json extension if provided
+        _fileToLoad = fileName.Replace(".json", "");
+        
+        // Clear existing data when switching files
+        ClearData();
+    }
+
+    public void ClearData()
+    {
+        _allCards = null;
+        _isLoaded = false;
     }
 
     public async Task<bool> LoadBulkDataAsync()
@@ -20,18 +38,66 @@ public class ScryfallDataService
         if (_isLoaded && _allCards != null)
             return true;
 
+        await _loadLock.WaitAsync();
         try
         {
-            // Try to load from local Scryfall directory
-            var response = await _httpClient.GetAsync("Scryfall/all-cards-20251205102358.json");
+            // Double-check after acquiring lock
+            if (_isLoaded && _allCards != null)
+                return true;
+
+            Console.WriteLine($"Starting to load Scryfall bulk data: {_fileToLoad}");
             
-            if (!response.IsSuccessStatusCode)
+            // Try different possible filenames for the selected file
+            var possibleFiles = new[]
             {
-                Console.WriteLine("Failed to load Scryfall bulk data file");
+                $"Scryfall/{_fileToLoad}.json",
+                $"Scryfall/{_fileToLoad}-20251205102358.json",
+                $"Scryfall/{_fileToLoad}-20251206102358.json"
+            };
+
+            HttpResponseMessage? response = null;
+            string? successfulFile = null;
+
+            foreach (var file in possibleFiles)
+            {
+                try
+                {
+                    var testResponse = await _httpClient.GetAsync(file, HttpCompletionOption.ResponseHeadersRead);
+                    if (testResponse.IsSuccessStatusCode)
+                    {
+                        response = testResponse;
+                        successfulFile = file;
+                        Console.WriteLine($"Found Scryfall data file: {file}");
+                        break;
+                    }
+                }
+                catch
+                {
+                    // Try next file
+                    continue;
+                }
+            }
+
+            if (response == null || !response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Failed to load Scryfall bulk data file: {_fileToLoad}.json");
+                Console.WriteLine("Please ensure the file is in wwwroot/Scryfall/");
+                Console.WriteLine("Download from: https://scryfall.com/docs/api/bulk-data");
+                Console.WriteLine($"Expected filename: {_fileToLoad}.json");
                 return false;
             }
 
-            var json = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Loading {successfulFile}, this may take a moment...");
+            
+            // Check content type and length
+            var contentLength = response.Content.Headers.ContentLength;
+            if (contentLength.HasValue)
+            {
+                Console.WriteLine($"File size: {contentLength.Value / 1024 / 1024}MB");
+            }
+
+            // Use stream-based deserialization for large files
+            using var stream = await response.Content.ReadAsStreamAsync();
             
             var options = new JsonSerializerOptions
             {
@@ -39,16 +105,43 @@ public class ScryfallDataService
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
 
-            _allCards = JsonSerializer.Deserialize<List<ScryfallCard>>(json, options);
-            _isLoaded = _allCards != null;
+            _allCards = await JsonSerializer.DeserializeAsync<List<ScryfallCard>>(stream, options);
+            _isLoaded = _allCards != null && _allCards.Count > 0;
 
-            Console.WriteLine($"Loaded {_allCards?.Count ?? 0} cards from Scryfall bulk data");
+            if (_isLoaded)
+            {
+                Console.WriteLine($"Successfully loaded {_allCards?.Count ?? 0} cards from Scryfall bulk data");
+            }
+            else
+            {
+                Console.WriteLine("File loaded but contains no cards or is empty");
+            }
+            
             return _isLoaded;
+        }
+        catch (JsonException jsonEx)
+        {
+            Console.WriteLine($"JSON parsing error: {jsonEx.Message}");
+            Console.WriteLine($"The file may be corrupted or too large for browser memory.");
+            Console.WriteLine($"Try using Oracle Cards (~50MB) instead of All Cards (~200MB)");
+            return false;
+        }
+        catch (OutOfMemoryException)
+        {
+            Console.WriteLine("Out of memory! The file is too large for the browser.");
+            Console.WriteLine("Please download 'Oracle Cards' instead of 'All Cards'");
+            Console.WriteLine("Oracle Cards: ~50MB, All Cards: ~200MB");
+            return false;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading Scryfall data: {ex.Message}");
+            Console.WriteLine($"Exception type: {ex.GetType().Name}");
             return false;
+        }
+        finally
+        {
+            _loadLock.Release();
         }
     }
 

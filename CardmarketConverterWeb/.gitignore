@@ -1,8 +1,8 @@
 # Scryfall bulk data files
 # Users should download these themselves from https://scryfall.com/docs/api/bulk-data
-Scryfall/*.json
+wwwroot/Scryfall/*.json
 # Keep the README to guide users
-!Scryfall/README.md
+!wwwroot/Scryfall/README.md
 
 # .NET Build outputs
 bin/

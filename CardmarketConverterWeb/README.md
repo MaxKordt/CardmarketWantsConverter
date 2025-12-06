@@ -84,12 +84,19 @@ By using this tool, you agree to:
 
 1. **Download Scryfall Bulk Data** (Required)
    - Go to [Scryfall Bulk Data](https://scryfall.com/docs/api/bulk-data)
-   - Download the latest "Default Cards" JSON file
-   - Create a `Scryfall/` directory in the project root
-   - Place the downloaded JSON file in the `Scryfall/` directory
+   - Download the **"Oracle Cards"** JSON file (recommended, ~50MB)
+   - **Note**: "All Cards" file (~200MB) may exceed browser memory limits
+   - Place the downloaded JSON file in `wwwroot/Scryfall/` directory
+   - Rename the file to `oracle-cards.json` or update the filename in `ScryfallDataService.cs`
    - The file is NOT included in the repository (users must download it themselves)
 
-2. **Build & Run**
+2. **Important Limitations**
+   - Blazor WebAssembly runs entirely in the browser
+   - Very large JSON files (>100MB) may cause memory issues
+   - Recommended: Use "Oracle Cards" (~50MB) instead of "All Cards" (~200MB)
+   - The "Oracle Cards" file contains unique card faces, which is sufficient for most use cases
+
+3. **Build & Run**
    ```bash
    dotnet build
    dotnet run
@@ -100,7 +107,7 @@ By using this tool, you agree to:
 - `Services/` - Business logic (extraction, API calls, storage)
 - `Pages/` - Blazor components (UI pages)
 - `wwwroot/` - Static assets
-- `Scryfall/` - Bulk data files (excluded from git, download separately)
+  - `Scryfall/` - Bulk data files (excluded from git, download separately)
 
 ## Contributing
 
