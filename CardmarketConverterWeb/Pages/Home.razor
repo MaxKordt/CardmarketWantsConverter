@@ -99,14 +99,19 @@
         
         try
         {
-            extractedExpansions = extractor.ExtractExpansionNames(inputContent);
+            // Use new comprehensive extraction
+            var extractedData = extractor.ExtractExpansions(inputContent);
+            extractedExpansions = extractedData.Select(e => e.Name).ToList();
             outputContent = extractor.ConvertListToText(extractedExpansions);
             hasOutput = extractedExpansions.Count > 0;
             
             if (hasOutput)
             {
-                var addedCount = await ExpansionList.AddExpansionsAsync(extractedExpansions);
-                statusMessage = $"Successfully extracted {extractedExpansions.Count} expansions! ({addedCount} new, {extractedExpansions.Count - addedCount} already in list)";
+                var addedCount = await ExpansionList.AddExpansionsWithDataAsync(extractedData);
+                var dataInfo = extractedData.Any(e => e.CardCount.HasValue || !string.IsNullOrEmpty(e.ReleaseDate)) 
+                    ? " (with card count & release date)" 
+                    : "";
+                statusMessage = $"Successfully extracted {extractedExpansions.Count} expansions{dataInfo}! ({addedCount} new, {extractedExpansions.Count - addedCount} already in list)";
             }
             else
             {

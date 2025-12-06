@@ -2,6 +2,8 @@
 
 A web-based tool to extract expansion names from Cardmarket HTML files and convert them to a downloadable text format.
 
+**experimenting with copilot ;)**
+
 ## Features
 
 - 📤 Upload HTML files or paste HTML content directly

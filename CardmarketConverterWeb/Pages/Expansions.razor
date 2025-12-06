@@ -11,6 +11,11 @@
 <h1>All Expansions</h1>
 
 <div class="container">
+    <div class="alert alert-info" role="alert">
+        <strong>💾 Storage:</strong> Your expansions are automatically saved in your browser's storage. 
+        Use the download buttons below if you want to export a backup file.
+    </div>
+    
     @if (expansionObjects.Count == 0)
     {
         <div class="alert alert-info" role="alert">
@@ -88,6 +93,9 @@
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Set Code</th>
+                                    <th>Cards</th>
+                                    <th>Release Date</th>
                                     <th>First Extracted</th>
                                     <th>Last Seen</th>
                                     <th>Times Extracted</th>
@@ -98,13 +106,54 @@
                                 @foreach (var expansion in expansionObjects)
                                 {
                                     <tr>
-                                        <td><strong>@expansion.Name</strong></td>
+                                        <td>
+                                            <strong>@expansion.Name</strong>
+                                            @if (!string.IsNullOrEmpty(expansion.ImageUrl))
+                                            {
+                                                <br />
+                                                <img src="@expansion.ImageUrl" alt="@expansion.Name" style="max-width: 64px; max-height: 64px; margin-top: 4px;" />
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(expansion.SetCode))
+                                            {
+                                                <code>@expansion.SetCode</code>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (expansion.CardCount.HasValue)
+                                            {
+                                                <span>@expansion.CardCount</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(expansion.ReleaseDate))
+                                            {
+                                                <span>@expansion.ReleaseDate</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
                                         <td>@expansion.FirstExtracted.ToString("yyyy-MM-dd HH:mm")</td>
                                         <td>@expansion.LastSeen.ToString("yyyy-MM-dd HH:mm")</td>
                                         <td>
                                             <span class="badge bg-info">@expansion.TimesExtracted</span>
                                         </td>
                                         <td>
+                                            @if (!string.IsNullOrEmpty(expansion.Url))
+                                            {
+                                                <a href="https://www.cardmarket.com@expansion.Url" target="_blank" class="btn btn-sm btn-primary me-1">View</a>
+                                            }
                                             <button class="btn btn-sm btn-danger" @onclick="() => RemoveExpansion(expansion.Name)">
                                                 Delete
                                             </button>

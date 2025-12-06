@@ -106,6 +106,52 @@ public class ExpansionListService
         return addedCount;
     }
 
+    public async Task<int> AddExpansionsWithDataAsync(List<Expansion> newExpansions)
+    {
+        int addedCount = 0;
+        var now = DateTime.Now;
+        
+        foreach (var expansion in newExpansions)
+        {
+            if (_expansions.ContainsKey(expansion.Name))
+            {
+                // Update existing expansion - merge new data
+                var existing = _expansions[expansion.Name];
+                existing.LastSeen = now;
+                existing.TimesExtracted++;
+                
+                // Update fields if new data is available
+                if (!string.IsNullOrEmpty(expansion.Url))
+                    existing.Url = expansion.Url;
+                if (!string.IsNullOrEmpty(expansion.SetCode))
+                    existing.SetCode = expansion.SetCode;
+                if (expansion.CardCount.HasValue)
+                    existing.CardCount = expansion.CardCount;
+                if (!string.IsNullOrEmpty(expansion.ReleaseDate))
+                    existing.ReleaseDate = expansion.ReleaseDate;
+                if (!string.IsNullOrEmpty(expansion.ImageUrl))
+                    existing.ImageUrl = expansion.ImageUrl;
+            }
+            else
+            {
+                // Add new expansion
+                expansion.FirstExtracted = now;
+                expansion.LastSeen = now;
+                expansion.TimesExtracted = 1;
+                _expansions[expansion.Name] = expansion;
+                addedCount++;
+            }
+        }
+        
+        if (newExpansions.Count > 0)
+        {
+            await SaveToStorageAsync();
+            OnExpansionsChanged?.Invoke();
+        }
+        
+        return addedCount;
+    }
+
     public List<Expansion> GetAllExpansions()
     {
         return _expansions.Values.OrderBy(e => e.Name).ToList();
