@@ -8,5 +8,6 @@ public class Expansion
     public int? CardCount { get; set; }
     public string? ReleaseDate { get; set; }
     public string? ImageUrl { get; set; }
+    public List<Card>? Cards { get; set; }
 }
 

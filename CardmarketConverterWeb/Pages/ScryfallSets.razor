@@ -1,0 +1,254 @@
+@page "/scryfall-sets"
+@using CardmarketConverterWeb.Services
+@using CardmarketConverterWeb.Models
+@inject ScryfallDataService ScryfallData
+
+<PageTitle>Scryfall Sets</PageTitle>
+
+<h1>Scryfall Sets</h1>
+
+<div class="container">
+    <div class="alert alert-info" role="alert">
+        <strong>📚 Scryfall Card Database:</strong> Browse all Magic: The Gathering sets from the Scryfall bulk data.
+        Independent from Cardmarket expansions.
+    </div>
+
+    @if (!dataLoaded)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading Scryfall data...</p>
+        </div>
+    }
+    else if (sets.Count == 0)
+    {
+        <div class="alert alert-warning" role="alert">
+            No sets found. Make sure the Scryfall bulk data file is in the Scryfall/ directory.
+        </div>
+    }
+    else
+    {
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-primary fs-5">Total: @sets.Count sets</span>
+                @if (setsWithCards.Count > 0)
+                {
+                    <span class="badge bg-success fs-5 ms-2">@setsWithCards.Count with cards loaded</span>
+                }
+            </div>
+            <div>
+                <input type="text" class="form-control" placeholder="Search sets..." @bind="searchQuery" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+            @foreach (var set in FilteredSets.Take(100))
+            {
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title">@set.Name</h6>
+                                    <p class="card-text">
+                                        <code class="text-primary">@set.Code</code>
+                                        @if (set.CardCount > 0)
+                                        {
+                                            <span class="badge bg-info ms-2">@set.CardCount cards</span>
+                                        }
+                                    </p>
+                                </div>
+                                <div>
+                                    @if (loadingSets.Contains(set.Code))
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" disabled>
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                            Loading...
+                                        </button>
+                                    }
+                                    else if (setsWithCards.Contains(set.Code))
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleCards(set.Code)">
+                                            @(expandedSets.Contains(set.Code) ? "▼" : "►")
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success" @onclick="() => LoadCards(set.Code)">
+                                            Load Cards
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (expandedSets.Contains(set.Code) && setCards.ContainsKey(set.Code))
+                            {
+                                <div class="mt-3">
+                                    <div style="max-height: 400px; overflow-y: auto;">
+                                        <div class="row row-cols-1 g-2">
+                                            @foreach (var card in setCards[set.Code].Take(30))
+                                            {
+                                                <div class="col">
+                                                    <div class="card">
+                                                        <div class="card-body p-2">
+                                                            <div class="d-flex align-items-center">
+                                                                @if (!string.IsNullOrEmpty(card.ImageUris?.Small))
+                                                                {
+                                                                    <img src="@card.ImageUris.Small" alt="@card.Name" style="width: 50px; height: 70px; object-fit: cover;" class="me-2 rounded" />
+                                                                }
+                                                                <div class="flex-grow-1">
+                                                                    <small><strong>@card.Name</strong></small>
+                                                                    <br />
+                                                                    <div class="d-flex gap-1 flex-wrap">
+                                                                        @if (!string.IsNullOrEmpty(card.CollectorNumber))
+                                                                        {
+                                                                            <small class="badge bg-secondary">#@card.CollectorNumber</small>
+                                                                        }
+                                                                        @if (!string.IsNullOrEmpty(card.Rarity))
+                                                                        {
+                                                                            <small class="badge" style="background-color: @GetRarityColor(card.Rarity)">@card.Rarity</small>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                        @if (setCards[set.Code].Count > 30)
+                                        {
+                                            <div class="alert alert-info mt-2 mb-0">
+                                                Showing first 30 of @setCards[set.Code].Count cards
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (FilteredSets.Count > 100)
+        {
+            <div class="alert alert-info mt-3">
+                Showing first 100 of @FilteredSets.Count sets. Use search to filter.
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<SetInfo> sets = new();
+    private Dictionary<string, List<Card>> setCards = new();
+    private HashSet<string> loadingSets = new();
+    private HashSet<string> expandedSets = new();
+    private HashSet<string> setsWithCards = new();
+    private bool dataLoaded = false;
+    private string searchQuery = string.Empty;
+
+    private List<SetInfo> FilteredSets
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchQuery))
+                return sets;
+
+            var query = searchQuery.ToLower();
+            return sets.Where(s =>
+                s.Name.ToLower().Contains(query) ||
+                s.Code.ToLower().Contains(query)
+            ).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load Scryfall data
+        dataLoaded = await ScryfallData.LoadBulkDataAsync();
+
+        if (dataLoaded)
+        {
+            await LoadSetList();
+        }
+    }
+
+    private async Task LoadSetList()
+    {
+        var setCodes = await ScryfallData.GetAvailableSetsAsync();
+        
+        sets = setCodes.Select(code =>
+        {
+            var cards = ScryfallData.GetCardsForSet(code);
+            return new SetInfo
+            {
+                Code = code,
+                Name = cards.FirstOrDefault()?.SetName ?? code.ToUpper(),
+                CardCount = cards.Count
+            };
+        })
+        .Where(s => s.CardCount > 0)
+        .OrderBy(s => s.Name)
+        .ToList();
+
+        StateHasChanged();
+    }
+
+    private void LoadCards(string setCode)
+    {
+        if (loadingSets.Contains(setCode))
+            return;
+
+        loadingSets.Add(setCode);
+        StateHasChanged();
+
+        try
+        {
+            var cards = ScryfallData.GetCardsForSet(setCode);
+            setCards[setCode] = cards;
+            setsWithCards.Add(setCode);
+            expandedSets.Add(setCode);
+        }
+        finally
+        {
+            loadingSets.Remove(setCode);
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleCards(string setCode)
+    {
+        if (expandedSets.Contains(setCode))
+        {
+            expandedSets.Remove(setCode);
+        }
+        else
+        {
+            expandedSets.Add(setCode);
+        }
+    }
+
+    private string GetRarityColor(string rarity)
+    {
+        return rarity.ToLower() switch
+        {
+            "common" => "#1e1e1e",
+            "uncommon" => "#6c757d",
+            "rare" => "#ffc107",
+            "mythic" => "#dc3545",
+            _ => "#6c757d"
+        };
+    }
+
+    private class SetInfo
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int CardCount { get; set; }
+    }
+}
+

@@ -52,7 +52,7 @@ public class ExpansionListService
                                 Name = name
                             };
                         }
-                        await SaveToStorageAsync();
+                        await SaveToStorageInternalAsync();
                         // Clean up old storage
                         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "cardmarket_expansions");
                     }
@@ -85,7 +85,7 @@ public class ExpansionListService
         
         if (newExpansionNames.Count > 0)
         {
-            await SaveToStorageAsync();
+            await SaveToStorageInternalAsync();
             OnExpansionsChanged?.Invoke();
         }
         
@@ -125,7 +125,7 @@ public class ExpansionListService
         
         if (newExpansions.Count > 0)
         {
-            await SaveToStorageAsync();
+            await SaveToStorageInternalAsync();
             OnExpansionsChanged?.Invoke();
         }
         
@@ -148,7 +148,7 @@ public class ExpansionListService
     {
         if (_expansions.Remove(expansionName))
         {
-            await SaveToStorageAsync();
+            await SaveToStorageInternalAsync();
             OnExpansionsChanged?.Invoke();
         }
     }
@@ -156,7 +156,7 @@ public class ExpansionListService
     public async Task ClearAllAsync()
     {
         _expansions.Clear();
-        await SaveToStorageAsync();
+        await SaveToStorageInternalAsync();
         OnExpansionsChanged?.Invoke();
     }
 
@@ -169,7 +169,7 @@ public class ExpansionListService
         });
     }
 
-    private async Task SaveToStorageAsync()
+    private async Task SaveToStorageInternalAsync()
     {
         try
         {
@@ -181,6 +181,17 @@ public class ExpansionListService
         {
             // Ignore errors
         }
+    }
+
+    public async Task SaveToStorageAsync()
+    {
+        await SaveToStorageInternalAsync();
+    }
+
+    public async Task SaveExpansionsAsync()
+    {
+        await SaveToStorageInternalAsync();
+        OnExpansionsChanged?.Invoke();
     }
 }
 
