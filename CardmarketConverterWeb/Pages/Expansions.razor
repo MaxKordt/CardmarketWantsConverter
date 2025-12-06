@@ -63,24 +63,101 @@
         {
             <div class="card">
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Expansion List</h5>
-                            <div class="expansion-badges mb-3">
-                                @foreach (var expansion in expansionObjects)
-                                {
-                                    <span class="badge bg-secondary me-2 mb-2 d-inline-flex align-items-center">
-                                        @expansion.Name
-                                        <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6rem;" @onclick="() => RemoveExpansion(expansion.Name)" aria-label="Remove"></button>
-                                    </span>
-                                }
+                    @{
+                        var groupedByYear = GetExpansionsGroupedByYear();
+                    }
+                    
+                    @if (groupedByYear.Count == 0)
+                    {
+                        <p class="text-muted">No expansions with release dates found.</p>
+                    }
+                    else
+                    {
+                        @foreach (var yearGroup in groupedByYear)
+                        {
+                            var isCurrentYear = yearGroup.Year == DateTime.Now.Year;
+                            var isExpanded = expandedYears.Contains(yearGroup.Year);
+                            
+                            <div class="mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white" 
+                                         style="cursor: pointer;" 
+                                         @onclick="() => ToggleYear(yearGroup.Year)">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">
+                                                <span>@(isExpanded ? "▼" : "►")</span>
+                                                <strong>@yearGroup.Year</strong>
+                                            </h5>
+                                            <span class="badge bg-light text-dark">@yearGroup.Expansions.Count expansions</span>
+                                        </div>
+                                    </div>
+                                    
+                                    @if (isExpanded)
+                                    {
+                                        <div class="card-body">
+                                            <div class="list-group">
+                                                @foreach (var expansion in yearGroup.Expansions)
+                                                {
+                                                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                                                        <div class="flex-grow-1">
+                                                            <div class="d-flex w-100 justify-content-between">
+                                                                <h6 class="mb-1">@expansion.Name</h6>
+                                                                @if (!string.IsNullOrEmpty(expansion.ReleaseDate))
+                                                                {
+                                                                    <small class="text-muted">@expansion.ReleaseDate</small>
+                                                                }
+                                                            </div>
+                                                            <div class="d-flex gap-2 mt-1">
+                                                                @if (expansion.CardCount.HasValue)
+                                                                {
+                                                                    <span class="badge bg-info">@expansion.CardCount Karten</span>
+                                                                }
+                                                                @if (!string.IsNullOrEmpty(expansion.SetCode))
+                                                                {
+                                                                    <span class="badge bg-secondary"><code class="text-white">@expansion.SetCode</code></span>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        <div class="ms-3">
+                                                            @if (!string.IsNullOrEmpty(expansion.Url))
+                                                            {
+                                                                <a href="https://www.cardmarket.com@expansion.Url" target="_blank" 
+                                                                   class="btn btn-sm btn-outline-primary me-1" title="View on Cardmarket">
+                                                                    View
+                                                                </a>
+                                                            }
+                                                            <button class="btn btn-sm btn-outline-danger" 
+                                                                    @onclick="() => RemoveExpansion(expansion.Name)" 
+                                                                    title="Delete">
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Text Format</h5>
-                            <textarea class="form-control" rows="20" readonly>@textContent</textarea>
-                        </div>
-                    </div>
+                        }
+                        
+                        @if (GetExpansionsWithoutDate().Any())
+                        {
+                            <div class="mt-4">
+                                <h5>Expansions without Release Date</h5>
+                                <div class="expansion-badges">
+                                    @foreach (var expansion in GetExpansionsWithoutDate())
+                                    {
+                                        <span class="badge bg-secondary me-2 mb-2 d-inline-flex align-items-center">
+                                            @expansion.Name
+                                            <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6rem;" 
+                                                    @onclick="() => RemoveExpansion(expansion.Name)" aria-label="Remove"></button>
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
                 </div>
             </div>
         }
@@ -176,12 +253,16 @@
     private string textContent = string.Empty;
     private string jsonContent = string.Empty;
     private string activeTab = "list";
+    private HashSet<int> expandedYears = new();
 
     protected override async Task OnInitializedAsync()
     {
         await ExpansionList.InitializeAsync();
         LoadExpansions();
         ExpansionList.OnExpansionsChanged += OnExpansionsChanged;
+        
+        // Expand current year by default
+        expandedYears.Add(DateTime.Now.Year);
     }
 
     private void LoadExpansions()
@@ -196,6 +277,18 @@
     {
         LoadExpansions();
         StateHasChanged();
+    }
+    
+    private void ToggleYear(int year)
+    {
+        if (expandedYears.Contains(year))
+        {
+            expandedYears.Remove(year);
+        }
+        else
+        {
+            expandedYears.Add(year);
+        }
     }
 
     private async Task DownloadAsTxt()
@@ -228,6 +321,96 @@
     private async Task ClearAll()
     {
         await ExpansionList.ClearAllAsync();
+    }
+
+    private List<YearGroup> GetExpansionsGroupedByYear()
+    {
+        var expansionsWithDates = expansionObjects
+            .Where(e => !string.IsNullOrEmpty(e.ReleaseDate))
+            .Select(e => new
+            {
+                Expansion = e,
+                Year = ExtractYear(e.ReleaseDate),
+                SortDate = ParseGermanDate(e.ReleaseDate)
+            })
+            .Where(x => x.Year.HasValue)
+            .OrderByDescending(x => x.SortDate) // Newest first
+            .ToList();
+
+        return expansionsWithDates
+            .GroupBy(x => x.Year!.Value)
+            .OrderByDescending(g => g.Key) // Newest year first
+            .Select(g => new YearGroup
+            {
+                Year = g.Key,
+                Expansions = g.Select(x => x.Expansion).ToList()
+            })
+            .ToList();
+    }
+
+    private List<Expansion> GetExpansionsWithoutDate()
+    {
+        return expansionObjects
+            .Where(e => string.IsNullOrEmpty(e.ReleaseDate))
+            .OrderBy(e => e.Name)
+            .ToList();
+    }
+
+    private int? ExtractYear(string? releaseDate)
+    {
+        if (string.IsNullOrEmpty(releaseDate))
+            return null;
+
+        // Extract year from German date format like "5. Dezember 2025"
+        var yearMatch = System.Text.RegularExpressions.Regex.Match(releaseDate, @"\d{4}");
+        if (yearMatch.Success && int.TryParse(yearMatch.Value, out int year))
+        {
+            return year;
+        }
+
+        return null;
+    }
+
+    private DateTime ParseGermanDate(string? releaseDate)
+    {
+        if (string.IsNullOrEmpty(releaseDate))
+            return DateTime.MinValue;
+
+        try
+        {
+            // Parse German date format like "5. Dezember 2025"
+            var parts = releaseDate.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 3)
+            {
+                var day = int.Parse(parts[0].TrimEnd('.'));
+                var monthName = parts[1];
+                var year = int.Parse(parts[2]);
+
+                var monthMap = new Dictionary<string, int>
+                {
+                    {"Januar", 1}, {"Februar", 2}, {"März", 3}, {"April", 4},
+                    {"Mai", 5}, {"Juni", 6}, {"Juli", 7}, {"August", 8},
+                    {"September", 9}, {"Oktober", 10}, {"November", 11}, {"Dezember", 12}
+                };
+
+                if (monthMap.TryGetValue(monthName, out int month))
+                {
+                    return new DateTime(year, month, day);
+                }
+            }
+        }
+        catch
+        {
+            // Return MinValue if parsing fails
+        }
+
+        return DateTime.MinValue;
+    }
+
+    private class YearGroup
+    {
+        public int Year { get; set; }
+        public List<Expansion> Expansions { get; set; } = new();
     }
 
     public void Dispose()
