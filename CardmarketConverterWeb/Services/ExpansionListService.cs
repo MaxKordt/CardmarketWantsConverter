@@ -49,10 +49,7 @@ public class ExpansionListService
                         {
                             _expansions[name] = new Expansion
                             {
-                                Name = name,
-                                FirstExtracted = DateTime.Now,
-                                LastSeen = DateTime.Now,
-                                TimesExtracted = 1
+                                Name = name
                             };
                         }
                         await SaveToStorageAsync();
@@ -73,25 +70,14 @@ public class ExpansionListService
     public async Task<int> AddExpansionsAsync(List<string> newExpansionNames)
     {
         int addedCount = 0;
-        var now = DateTime.Now;
         
         foreach (var name in newExpansionNames)
         {
-            if (_expansions.ContainsKey(name))
+            if (!_expansions.ContainsKey(name))
             {
-                // Update existing expansion
-                _expansions[name].LastSeen = now;
-                _expansions[name].TimesExtracted++;
-            }
-            else
-            {
-                // Add new expansion
                 _expansions[name] = new Expansion
                 {
-                    Name = name,
-                    FirstExtracted = now,
-                    LastSeen = now,
-                    TimesExtracted = 1
+                    Name = name
                 };
                 addedCount++;
             }
@@ -109,7 +95,6 @@ public class ExpansionListService
     public async Task<int> AddExpansionsWithDataAsync(List<Expansion> newExpansions)
     {
         int addedCount = 0;
-        var now = DateTime.Now;
         
         foreach (var expansion in newExpansions)
         {
@@ -117,8 +102,6 @@ public class ExpansionListService
             {
                 // Update existing expansion - merge new data
                 var existing = _expansions[expansion.Name];
-                existing.LastSeen = now;
-                existing.TimesExtracted++;
                 
                 // Update fields if new data is available
                 if (!string.IsNullOrEmpty(expansion.Url))
@@ -135,9 +118,6 @@ public class ExpansionListService
             else
             {
                 // Add new expansion
-                expansion.FirstExtracted = now;
-                expansion.LastSeen = now;
-                expansion.TimesExtracted = 1;
                 _expansions[expansion.Name] = expansion;
                 addedCount++;
             }

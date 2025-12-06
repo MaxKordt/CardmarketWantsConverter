@@ -8,8 +8,5 @@ public class Expansion
     public int? CardCount { get; set; }
     public string? ReleaseDate { get; set; }
     public string? ImageUrl { get; set; }
-    public DateTime FirstExtracted { get; set; }
-    public DateTime LastSeen { get; set; }
-    public int TimesExtracted { get; set; } = 1;
 }
 
