@@ -80,17 +80,27 @@ By using this tool, you agree to:
 
 ## Development
 
-### Build & Run
-```bash
-dotnet build
-dotnet run
-```
+### Setup
+
+1. **Download Scryfall Bulk Data** (Required)
+   - Go to [Scryfall Bulk Data](https://scryfall.com/docs/api/bulk-data)
+   - Download the latest "Default Cards" JSON file
+   - Create a `Scryfall/` directory in the project root
+   - Place the downloaded JSON file in the `Scryfall/` directory
+   - The file is NOT included in the repository (users must download it themselves)
+
+2. **Build & Run**
+   ```bash
+   dotnet build
+   dotnet run
+   ```
 
 ### Project Structure
 - `Models/` - Data models (Expansion, Card)
 - `Services/` - Business logic (extraction, API calls, storage)
 - `Pages/` - Blazor components (UI pages)
 - `wwwroot/` - Static assets
+- `Scryfall/` - Bulk data files (excluded from git, download separately)
 
 ## Contributing
 

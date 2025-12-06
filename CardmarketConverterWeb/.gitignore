@@ -1,0 +1,79 @@
+# Scryfall bulk data files
+# Users should download these themselves from https://scryfall.com/docs/api/bulk-data
+Scryfall/*.json
+# Keep the README to guide users
+!Scryfall/README.md
+
+# .NET Build outputs
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+.DS_Store
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Blazor WebAssembly
+wwwroot/dist/
+**/_framework/
+
+# Node modules (if using npm for frontend tools)
+node_modules/
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local development files
+*.local
+appsettings.Development.json
+launchSettings.json
+
