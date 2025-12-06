@@ -179,7 +179,7 @@ public class ExpansionListService
         }
         catch
         {
-            // Silently fail if storage is not available
+            // Ignore errors
         }
     }
 }
